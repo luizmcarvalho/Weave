@@ -54,7 +54,9 @@
 			import weave.api.linkBindableProperty;
 			import weave.api.newLinkableChild;
 			import weave.api.registerLinkableChild;
+			import weave.compiler.Compiler;
 			import weave.core.LinkableWatcher;
+			import weave.core.UIUtils;
 			import weave.data.AttributeColumns.DynamicColumn;
 			import weave.data.AttributeColumns.ReferencedColumn;
 			import weave.data.hierarchy.DataSourceTreeNode;
@@ -124,6 +126,7 @@
 				explorer.folderView.dragEnabled = false;
 				explorer.fileView.dragEnabled = true;
 				
+				getCallbackCollection(explorer).addGroupedCallback(this, handleExplorerGroupedCallback);
 				referencedColumn.addImmediateCallback(this, handleReferencedColumn, true);
 				
 				BindingUtils.bindSetter(handleSelection, explorer.fileView, 'selectedItem');
@@ -138,6 +141,10 @@
 			
 			private function handleSelection(node:IWeaveTreeNode):void
 			{
+				// don't set session state if tree is not focused.
+				if (!UIUtils.hasFocus(explorer.fileView))
+					return;
+				
 				var ref:IColumnReference = explorer.fileView.selectedItem as IColumnReference;
 				if (ref)
 				{
@@ -153,14 +160,21 @@
 				}
 			}
 			
+			private function handleExplorerGroupedCallback():void
+			{
+				// If we have a target and nothing is selected, try to find the item in the newly updated hierarchy
+				if (target && target.internalObject is ReferencedColumn && !explorer.fileView.selectedItem)
+					handleReferencedColumn();
+			}
+			
 			private function handleReferencedColumn():void
 			{
 				var ds:IDataSource = referencedColumn.getDataSource();
 				if (ds)
 				{
-					var node:IWeaveTreeNode = ds.findHierarchyNode(referencedColumn.metadata.getSessionState());
-					explorer.folderView.expandPathAndSelectNode(node);
-					explorer.fileView.expandPathAndSelectNode(node);
+					var meta:Object = referencedColumn.metadata.getSessionState();
+					var node:IWeaveTreeNode = ds.findHierarchyNode(meta);
+					explorer.expandPathAndSelectNode(node);
 				}
 			}
 			
